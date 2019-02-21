@@ -1,3 +1,2 @@
 # Mukhtasar
-Multi-Document Summarizer
-"# Multi-Document-Summarization" 
+Abstractive Multi-Document Summarizer
