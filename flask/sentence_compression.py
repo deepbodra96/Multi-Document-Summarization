@@ -165,39 +165,48 @@ class Model(object):
 				self.update = optimizer.apply_gradients(zip(clipped_gradients, params), global_step=self.global_step)
 
 
-def predict(model_name, sentences):
+def load_model(model_name):
 	word_dict, reversed_dict = build_dict(model_name)
+	
+
+	sess = tf.Session()
+	model = Model(reversed_dict, article_max_len, summary_max_len, config, forward_only=True)
+	saver = tf.train.Saver(tf.global_variables())
+	# ckpt = tf.train.get_checkpoint_state("./saved_model/")
+	saver.restore(sess, "./models/%s"%(model_name))
+	return word_dict, reversed_dict, model, sess
+
+
+
+def predict(sentences, word_dict, reversed_dict, model, sess):
 	valid_x = build_dataset(sentences, word_dict, article_max_len, summary_max_len)
 	valid_x_len = [len([y for y in x if y != 0]) for x in valid_x]
 
-	with tf.Session() as sess:
-		model = Model(reversed_dict, article_max_len, summary_max_len, config, forward_only=True)
-		saver = tf.train.Saver(tf.global_variables())
-		# ckpt = tf.train.get_checkpoint_state("./saved_model/")
-		saver.restore(sess, "./models/%s"%(model_name))
+	batches = batch_iter(valid_x, [0] * len(valid_x), config['batch_size'], 1)
 
-		batches = batch_iter(valid_x, [0] * len(valid_x), config['batch_size'], 1)
+	compressed_sentences = []
+	for batch_x, _ in batches:
+		batch_x_len = [len([y for y in x if y != 0]) for x in batch_x]
 
-		compressed_sentences = []
-		for batch_x, _ in batches:
-			batch_x_len = [len([y for y in x if y != 0]) for x in batch_x]
+		valid_feed_dict = {
+			model.batch_size: len(batch_x),
+			model.X: batch_x,
+			model.X_len: batch_x_len,
+		}
 
-			valid_feed_dict = {
-				model.batch_size: len(batch_x),
-				model.X: batch_x,
-				model.X_len: batch_x_len,
-			}
-
-			prediction = sess.run(model.prediction, feed_dict=valid_feed_dict)
-			prediction_output = [[reversed_dict.get(y, 'X') for y in x] for x in prediction[:, 0, :]]
+		prediction = sess.run(model.prediction, feed_dict=valid_feed_dict)
+		prediction_output = [[reversed_dict.get(y, 'X') for y in x] for x in prediction[:, 0, :]]
 
 
-			for line in prediction_output:
-					sentence = list()
-					for word in line:
-						if word == "</s>":
-							break
-						if word not in sentence:
-							sentence.append(word)
-					compressed_sentences.append(" ".join(sentence))
-		return compressed_sentences
+		for line in prediction_output:
+				sentence = list()
+				for word in line:
+					if word == "</s>":
+						break
+					if word not in sentence:
+						sentence.append(word)
+				compressed_sentences.append(" ".join(sentence))
+	return compressed_sentences
+
+
+word_dict, reversed_dict, valid_x, model = None, None, None, None

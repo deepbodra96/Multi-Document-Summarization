@@ -1,13 +1,14 @@
 from flask import Flask, request
 from flask_restful import Resource, Api
 
-from sentence_compression import predict
+from sentence_compression import load_model, predict
 
 import os
 
 app = Flask(__name__)
 api = Api(app)
 
+word_dict, reversed_dict, model, sess = load_model("model.ckpt-78125")
 
 class About(Resource):
 	"""About Us"""
@@ -22,7 +23,7 @@ class SentenceCompression(Resource):
 
 		model_name =  request_data['model_name']
 		sentences =  request_data['sentences']
-		return {'compressed_sentences': predict(model_name, sentences)}
+		return {'compressed_sentences': predict(sentences, word_dict, reversed_dict, model, sess)}
 
 
 api.add_resource(About, '/about')
