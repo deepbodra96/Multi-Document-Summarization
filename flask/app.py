@@ -2,6 +2,7 @@ from flask import Flask, request
 from flask_restful import Resource, Api
 
 from sentence_compression import load_model, predict
+from retain_proper_nouns import rectify_proper_nouns
 
 import os
 
@@ -23,7 +24,8 @@ class SentenceCompression(Resource):
 
 		model_name =  request_data['model_name']
 		sentences =  request_data['sentences']
-		return {'compressed_sentences': predict(sentences, word_dict, reversed_dict, model, sess)}
+		compressed_sentences = predict(sentences, word_dict, reversed_dict, model, sess)
+		return {'summary': rectify_proper_nouns(sentences, compressed_sentences)}
 
 
 api.add_resource(About, '/about')
